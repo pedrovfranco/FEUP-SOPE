@@ -7,23 +7,60 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 1024
+
+int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
 
 
-char* strContains(const char* str1, const char* str2, const int arguments[]) // Searches for str2 in str1
+int intlength(int input)
 {
-	int found = 1;
+	if (input == 0)
+		return 1;
 
-	int i;
-	for (i = 0; i < strlen(str1); ++i)
+	int i = 0;
+	
+	while (input)
+	{
+		input /= 10;
+		i++;
+	}
+
+	return i;
+}
+
+int cmpi(char ch1, char ch2) // Compares two chars without case sensitivity.
+{
+	if (ch1 >= 'A' && ch1 <= 'Z')
+	{
+		ch1 += 'a' - 'A';
+	}
+
+	if (ch2 >= 'A' && ch2 <= 'Z')
+	{
+		ch2 += 'a' - 'A';
+	}
+
+	return (ch1 == ch2);
+}
+
+
+const char* strContains(const char* str1, const char* str2) // Searches for str2 in str1
+{
+	int found;
+
+	for (int i = 0; i < strlen(str1); ++i)
 	{
 		found = 1;
 
-		for (int j = 0; j < strlen(str1); ++j)
+		for (int j = 0; j < strlen(str2); ++j)
 		{
-			if (arguments[0]) // -i maiusculas
+			if (options[0]) // -i
 			{
-
+				if (!cmpi(str1[i+j], str2[j]))
+				{
+					found = 0;
+					break;
+				}
 			}
 			else
 			{
@@ -36,12 +73,14 @@ char* strContains(const char* str1, const char* str2, const int arguments[]) // 
 		}
 
 		if (found) // Found
-			return str[i];
+			return str1+i;
 	}
+
+	return NULL;
 }
 
 
-int noOptions(const char* pattern, const char* filename, const int arguments[])
+int fromFile(const char* pattern, const char* filename)
 {
 	FILE *file = fopen(filename, "r");
 
@@ -52,47 +91,99 @@ int noOptions(const char* pattern, const char* filename, const int arguments[])
 	}
 
 	char *buffer = NULL;
-	int numRead = BUFFER_SIZE;
 	size_t bufferSize = BUFFER_SIZE;
+
+	unsigned int iteCounter = 0;
+	unsigned int matchCounter = 0;
 
 	while(!feof(file))
 	{
-		numRead = getline(&buffer, &bufferSize, file);
+		getline(&buffer, &bufferSize, file);
 		
-		if (strstr(buffer, pattern) != NULL)
+		if (strContains(buffer, pattern) != NULL)
 		{
-			printf("%s", buffer);
+
+			if (options[1]) // -l
+			{
+				printf("%s\n", filename);
+
+				break;
+			}
+			else if (options[3]) // -c
+			{
+				matchCounter++;
+			}
+			else
+			{	
+				if (options[2]) // -n
+				{	
+					printf("%u:", iteCounter+1);
+				}
+
+				printf("%s", buffer);
+			}
 		}
 
+		iteCounter++;
 	}
 
 	fclose(file);
 
-	return 0;
+	if (options[3]) // -c
+	{
+		printf("%u\n", matchCounter);
+	}
 
+	return 0;
+}
+
+int errorMessage()
+{
+	printf("Usage: simgrep [OPTION] PATTERN [FILE]\n");
+	return 1;
 }
 
 
 int main(int argc, char const *argv[])
 {
 
-	int arguments[6] = {0,0,0,0,0,0}; // 0 = i, 1 = l, 2 = n, 3 = c, 4 = w, 5 = r
-
-	int i;
-	for (i = 0; i < argc; ++i)
+	if (argc < 3)
 	{
-		if (strcmp())
+		return errorMessage();
 	}
 
-	if (argc == 3)
+	for (int i = 1; i < argc - 2; ++i) // Fills options array. number of options = argc - 3
 	{
-		return noOptions(argv[1], argv[2], arguments);
-	}
-	else
-	{
-		printf("Wrong number of arguments!\n");
-		return 1;
+
+		if (strcmp(argv[i], "-i") == 0)
+		{
+			options[0] = 1;
+		}
+		else if (strcmp(argv[i], "-l") == 0)
+		{
+			options[1] = 1;
+		}
+		else if (strcmp(argv[i], "-n") == 0)
+		{
+			options[2] = 1;
+		}
+		else if (strcmp(argv[i], "-c") == 0)
+		{
+			options[3] = 1;
+		}
+		else if (strcmp(argv[i], "-w") == 0)
+		{
+			options[4] = 1;
+		}
+		else if (strcmp(argv[i], "-r") == 0)
+		{
+			options[5] = 1;
+		}
+		else
+		{
+			return errorMessage();
+		}
 	}
 
-	return 1;
+	return fromFile(argv[argc-2], argv[argc-1]);
 }
