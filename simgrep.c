@@ -78,7 +78,6 @@ int fromFile(const char* pattern, const char* filename)
 	unsigned int iteCounter = 0;
 	unsigned int matchCounter = 0;
 
-	//int printedLastline;
 
 	while(!feof(file))
 	{
@@ -118,11 +117,6 @@ int fromFile(const char* pattern, const char* filename)
 	{
 		printf("%u\n", matchCounter);
 	}
-	// else
-	// {
-	// 	if (matchCounter != 0 || feof(file)) // Doesnt print a newline if there are no matches but does
-	// 		printf("\n");
-	// }
 
 	return 0;
 }
