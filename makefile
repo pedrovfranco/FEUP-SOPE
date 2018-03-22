@@ -1,5 +1,5 @@
 cc		 = gcc
-CFLAGS	 = -Wall
+CFLAGS	 = -Wall -g
 LDFLAGS  =
 DEPS	 = simgrep.c aux_fun.c aux_fun.h
 OBJFILES = aux_fun.o simgrep.o
