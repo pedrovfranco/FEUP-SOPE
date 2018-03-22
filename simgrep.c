@@ -12,6 +12,14 @@
 int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
 
 
+int isWordCharacter(const char ch)
+{
+	if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_')
+		return 1;
+	else
+		return 0;
+}	
+
 int intlength(int input)
 {
 	if (input == 0)
@@ -28,7 +36,7 @@ int intlength(int input)
 	return i;
 }
 
-int cmpi(char ch1, char ch2) // Compares two chars without case sensitivity.
+int cmpi(char ch1, char ch2) // Compares two characters without case sensitivity.
 {
 	if (ch1 >= 'A' && ch1 <= 'Z')
 	{
@@ -56,24 +64,38 @@ const char* strContains(const char* str1, const char* str2) // Searches for str2
 		{
 			if (options[0]) // -i
 			{
-				if (!cmpi(str1[i+j], str2[j]))
+				if (!cmpi(str1[i+j], str2[j])) // Not a match
 				{
 					found = 0;
+					// i += j;
 					break;
 				}
 			}
 			else
 			{
-				if (str1[i+j] != str2[j])
+				if (str1[i+j] != str2[j]) // Not a match
 				{
 					found = 0;
+					// i += j;
 					break;
 				}
 			}
 		}
 
 		if (found) // Found
-			return str1+i;
+		{
+			if (options[4]) // -w
+			{
+				if ((i == 0 || !isWordCharacter(str1[i-1])) && (i + strlen(str2) == strlen(str1)-2 || !isWordCharacter(str1[i+strlen(str2)]))) // grep definition of word
+				{
+					return str1+i;
+				}
+			}
+			else
+			{
+				return str1+i;
+			}
+		}
 	}
 
 	return NULL;
@@ -95,23 +117,25 @@ int fromFile(const char* pattern, const char* filename)
 
 	unsigned int iteCounter = 0;
 	unsigned int matchCounter = 0;
+	int printedLastline;
 
 	while(!feof(file))
 	{
 		getline(&buffer, &bufferSize, file);
-		
+
+		if (buffer[strlen(buffer)-1] != '\n')
+					strcat(buffer, "\n");
+
 		if (strContains(buffer, pattern) != NULL)
 		{
+			matchCounter++;
 
 			if (options[1]) // -l
 			{
 				printf("%s\n", filename);
 
-				break;
-			}
-			else if (options[3]) // -c
-			{
-				matchCounter++;
+				fclose(file);
+				return 0;
 			}
 			else
 			{	
@@ -119,7 +143,7 @@ int fromFile(const char* pattern, const char* filename)
 				{	
 					printf("%u:", iteCounter+1);
 				}
-
+				
 				printf("%s", buffer);
 			}
 		}
@@ -133,6 +157,11 @@ int fromFile(const char* pattern, const char* filename)
 	{
 		printf("%u\n", matchCounter);
 	}
+	// else
+	// {
+	// 	if (matchCounter != 0 || feof(file)) // Doesnt print a newline if there are no matches but does
+	// 		printf("\n");
+	// }
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+#Changed to function as a whitelist
 *
 !(simgrep.c)
 !(makefile)
