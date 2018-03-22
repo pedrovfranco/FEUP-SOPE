@@ -1,3 +1,5 @@
+#include "aux_fun.h"
+
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
@@ -7,7 +9,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "aux_fun.h"
 
 int isWordCharacter(const char ch)
 {
