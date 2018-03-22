@@ -26,7 +26,7 @@ const char* strContains(const char* str1, const char* str2) // Searches for str2
 
 		for (int j = 0; j < strlen(str2); ++j)
 		{
-			if (options[0]) // -i
+			if (options[0]) // -i, disregard case differences ('A' == 'a').
 			{
 				if (!cmpi(str1[i+j], str2[j])) // Not a match
 				{
@@ -48,7 +48,7 @@ const char* strContains(const char* str1, const char* str2) // Searches for str2
 
 		if (found) // Found
 		{
-			if (options[4]) // -w
+			if (options[4]) // -w, matches only words, see "man grep" for more info.
 			{
 				if ((i == 0 || !isWordCharacter(str1[i-1])) && (i + strlen(str2) == strlen(str1)-2 || !isWordCharacter(str1[i+strlen(str2)]))) // grep definition of word
 				{
@@ -76,7 +76,7 @@ int mainFunc(const char* pattern, const char* filename)
 
 	if (file == NULL)
 	{
-		printf("File does not exist!\n");
+		printf("simgrep: %s: No such file or directory\n", filename);
 		return 1;
 	}
 
@@ -98,7 +98,7 @@ int mainFunc(const char* pattern, const char* filename)
 		{
 			matchCounter++;
 
-			if (options[1]) // -l
+			if (options[1]) // -l, prints only the filenames of files with matches to pattern.
 			{
 				printf("%s\n", filename);
 
@@ -107,7 +107,7 @@ int mainFunc(const char* pattern, const char* filename)
 			}
 			else
 			{	
-				if (options[2]) // -n
+				if (options[2]) // -n, iniciates the print with the line number.
 				{	
 					printf("%u:", iteCounter+1);
 				}
@@ -121,7 +121,7 @@ int mainFunc(const char* pattern, const char* filename)
 
 	fclose(file);
 
-	if (options[3]) // -c
+	if (options[3]) // -c, prints the number of matches.
 	{
 		printf("%u\n", matchCounter);
 	}
@@ -180,18 +180,36 @@ int main(int argc, char const *argv[])
 		
 	}	
 
-
-	if (argc == 2 || argv[argc-2][0] == '-') // no filename in arguments
+	if (options[5]) // -r, grabs files recursively
 	{
-		fromstdin = 1;
-		return mainFunc(argv[argc-1], NULL);
+		DIR* currdr = opendir(".");
+		struct dirent curr;
+
+		if (currdr == NULL)
+		{
+			printf("opendir error!\n");
+			return 1;
+		}
+
+		while ((curr = readdir(currdr)) != NULL)
+		{
+			
+		}
+
 	}
 	else
 	{
-		return mainFunc(argv[argc-2], argv[argc-1]);
+		if (argc == 2 || argv[argc-2][0] == '-') // no filename in arguments
+		{
+			fromstdin = 1;
+			return mainFunc(argv[argc-1], NULL);
+		}
+		else
+		{
+			return mainFunc(argv[argc-2], argv[argc-1]);
+		}
 	}
 	
-	// Recursiveness
 
 	return 1;
 }
