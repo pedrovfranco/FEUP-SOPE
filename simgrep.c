@@ -7,50 +7,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "aux_fun.h"
+
 #define BUFFER_SIZE 1024
 
 int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
-
-
-int isWordCharacter(const char ch)
-{
-	if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_')
-		return 1;
-	else
-		return 0;
-}	
-
-int intlength(int input)
-{
-	if (input == 0)
-		return 1;
-
-	int i = 0;
-	
-	while (input)
-	{
-		input /= 10;
-		i++;
-	}
-
-	return i;
-}
-
-int cmpi(char ch1, char ch2) // Compares two characters without case sensitivity.
-{
-	if (ch1 >= 'A' && ch1 <= 'Z')
-	{
-		ch1 += 'a' - 'A';
-	}
-
-	if (ch2 >= 'A' && ch2 <= 'Z')
-	{
-		ch2 += 'a' - 'A';
-	}
-
-	return (ch1 == ch2);
-}
-
 
 const char* strContains(const char* str1, const char* str2) // Searches for str2 in str1
 {
@@ -101,7 +62,6 @@ const char* strContains(const char* str1, const char* str2) // Searches for str2
 	return NULL;
 }
 
-
 int fromFile(const char* pattern, const char* filename)
 {
 	FILE *file = fopen(filename, "r");
@@ -117,7 +77,8 @@ int fromFile(const char* pattern, const char* filename)
 
 	unsigned int iteCounter = 0;
 	unsigned int matchCounter = 0;
-	int printedLastline;
+
+	//int printedLastline;
 
 	while(!feof(file))
 	{
@@ -165,13 +126,6 @@ int fromFile(const char* pattern, const char* filename)
 
 	return 0;
 }
-
-int errorMessage()
-{
-	printf("Usage: simgrep [OPTION] PATTERN [FILE]\n");
-	return 1;
-}
-
 
 int main(int argc, char const *argv[])
 {
