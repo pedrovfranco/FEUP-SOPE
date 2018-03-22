@@ -1,5 +1,7 @@
 #Changed to function as a whitelist
 *
 !(simgrep.c)
+!(aux_fun.c)
+!(aux_fun.h)
 !(makefile)
-!Enunciado.pdf)
+!(Enunciado.pdf)
