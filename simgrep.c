@@ -6,12 +6,15 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "dirent.h"
 
 #include "aux_fun.h"
 
 #define BUFFER_SIZE 1024
 
 int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
+int fromstdin = 0; // Flag the determines whether the program is reading from a file or from the standard input
+
 
 const char* strContains(const char* str1, const char* str2) // Searches for str2 in str1
 {
@@ -62,9 +65,14 @@ const char* strContains(const char* str1, const char* str2) // Searches for str2
 	return NULL;
 }
 
-int fromFile(const char* pattern, const char* filename)
+int mainFunc(const char* pattern, const char* filename)
 {
-	FILE *file = fopen(filename, "r");
+	FILE *file;
+
+	if (fromstdin)
+		file = stdin;
+	else
+		file = fopen(filename, "r");
 
 	if (file == NULL)
 	{
@@ -124,43 +132,66 @@ int fromFile(const char* pattern, const char* filename)
 int main(int argc, char const *argv[])
 {
 
-	if (argc < 3)
+	if (argc < 2)
 	{
 		return errorMessage();
 	}
 
-	for (int i = 1; i < argc - 2; ++i) // Fills options array. number of options = argc - 3
+	for (int i = 1; i < argc - 1; ++i) // Fills options array. number of options = argc - 3
 	{
+		if (argv[i][0] == '-')
+		{
+			if (strlen(argv[i]) == 2)
+			{
+				if (strcmp(argv[i], "-i") == 0)
+				{
+					options[0] = 1;
+				}
+				else if (strcmp(argv[i], "-l") == 0)
+				{
+					options[1] = 1;
+				}
+				else if (strcmp(argv[i], "-n") == 0)
+				{
+					options[2] = 1;
+				}
+				else if (strcmp(argv[i], "-c") == 0)
+				{
+					options[3] = 1;
+				}
+				else if (strcmp(argv[i], "-w") == 0)
+				{
+					options[4] = 1;
+				}
+				else if (strcmp(argv[i], "-r") == 0)
+				{
+					options[5] = 1;
+				}
+				else // Not a valid option
+				{
+					return errorMessage();
+				}
+			}
+			else // Not a valid option
+			{
+				return errorMessage();
+			}
+		}
+		
+	}	
 
-		if (strcmp(argv[i], "-i") == 0)
-		{
-			options[0] = 1;
-		}
-		else if (strcmp(argv[i], "-l") == 0)
-		{
-			options[1] = 1;
-		}
-		else if (strcmp(argv[i], "-n") == 0)
-		{
-			options[2] = 1;
-		}
-		else if (strcmp(argv[i], "-c") == 0)
-		{
-			options[3] = 1;
-		}
-		else if (strcmp(argv[i], "-w") == 0)
-		{
-			options[4] = 1;
-		}
-		else if (strcmp(argv[i], "-r") == 0)
-		{
-			options[5] = 1;
-		}
-		else
-		{
-			return errorMessage();
-		}
+
+	if (argc == 2 || argv[argc-2][0] == '-') // no filename in arguments
+	{
+		fromstdin = 1;
+		return mainFunc(argv[argc-1], NULL);
 	}
+	else
+	{
+		return mainFunc(argv[argc-2], argv[argc-1]);
+	}
+	
+	// Recursiveness
 
-	return fromFile(argv[argc-2], argv[argc-1]);
+	return 1;
 }
