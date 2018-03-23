@@ -81,6 +81,14 @@ int mainFunc(const char* pattern, const char* filename)
 		return 1;
 	}
 
+	struct stat st;
+
+	if (stat(filename, &st) == 0 && S_ISDIR(st.st_mode))
+	{
+		printf("simgrep: %s: Is a directory\n", filename);
+		return 1;
+	}
+
 	char *buffer = NULL;
 	size_t bufferSize = BUFFER_SIZE;
 
@@ -108,15 +116,11 @@ int mainFunc(const char* pattern, const char* filename)
 			}
 			else
 			{	
-				if (options[5]) // -r
-				{
+				if (options[5]) // -r, prints the filename if recursive option is activated
 					printf("%s:", filename+2);
-				}
 
 				if (options[2]) // -n, iniciates the print with the line number.
-				{	
 					printf("%u:", iteCounter+1);
-				}
 				
 				printf("%s", buffer);
 			}
@@ -136,7 +140,7 @@ int mainFunc(const char* pattern, const char* filename)
 }
 
 
-int recursive(const char* pattern, const char* dirname)
+int recursiveFunc(const char* pattern, const char* dirname)
 {
 	DIR* currdr = opendir(dirname);
 	struct dirent *curr;
@@ -157,7 +161,7 @@ int recursive(const char* pattern, const char* dirname)
 			{
 				if (S_ISDIR(st.st_mode))
 				{
-					recursive(pattern, path);
+					recursiveFunc(pattern, path);
 				}
 				else
 				{
@@ -226,7 +230,17 @@ int main(int argc, char const *argv[])
 
 	if (options[5]) // -r, grabs files recursively
 	{
-		recursive(argv[argc-1], ".");
+		if (argc == 2 || argv[argc-2][0] == '-') // no filename in arguments
+		{
+			recursiveFunc(argv[argc-1], ".");
+		}
+		else
+		{			
+			char foo[128] = "./";
+			strcat(foo, argv[argc-1]);
+
+			recursiveFunc(argv[argc-2], foo);
+		}
 	}
 	else
 	{
