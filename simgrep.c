@@ -16,6 +16,7 @@ int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
 int fromstdin = 0; // Flag the determines whether the program is reading from a file or from the standard input
 
 
+
 const char* strContains(const char* str1, const char* str2) // Searches for str2 in str1
 {
 	int found;
@@ -107,6 +108,11 @@ int mainFunc(const char* pattern, const char* filename)
 			}
 			else
 			{	
+				if (options[5]) // -r
+				{
+					printf("%s:", filename+2);
+				}
+
 				if (options[2]) // -n, iniciates the print with the line number.
 				{	
 					printf("%u:", iteCounter+1);
@@ -125,6 +131,44 @@ int mainFunc(const char* pattern, const char* filename)
 	{
 		printf("%u\n", matchCounter);
 	}
+
+	return 0;
+}
+
+
+int recursive(const char* pattern, const char* dirname)
+{
+	DIR* currdr = opendir(dirname);
+	struct dirent *curr;
+	struct stat st;
+	char path[1024];
+
+	while ((curr = readdir(currdr)) != NULL)
+	{
+		// printf("%s\n", curr->d_name);
+
+		sprintf(path, "%s/%s", dirname, curr->d_name);
+
+		// printf("%s\n", path);
+
+		if (strcmp(curr->d_name, "..") != 0 && strcmp(curr->d_name, ".") != 0)
+		{
+			if (stat(path, &st) == 0)
+			{
+				if (S_ISDIR(st.st_mode))
+				{
+					recursive(pattern, path);
+				}
+				else
+				{
+					mainFunc(pattern, path);
+				}
+			
+			}
+		}
+	}
+
+	closedir(currdr);
 
 	return 0;
 }
@@ -182,20 +226,7 @@ int main(int argc, char const *argv[])
 
 	if (options[5]) // -r, grabs files recursively
 	{
-		DIR* currdr = opendir(".");
-		struct dirent curr;
-
-		if (currdr == NULL)
-		{
-			printf("opendir error!\n");
-			return 1;
-		}
-
-		while ((curr = readdir(currdr)) != NULL)
-		{
-			
-		}
-
+		recursive(argv[argc-1], ".");
 	}
 	else
 	{
