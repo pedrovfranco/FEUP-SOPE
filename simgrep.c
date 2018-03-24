@@ -149,11 +149,7 @@ int recursiveFunc(const char* pattern, const char* dirname)
 
 	while ((curr = readdir(currdr)) != NULL)
 	{
-		// printf("%s\n", curr->d_name);
-
 		sprintf(path, "%s/%s", dirname, curr->d_name);
-
-		// printf("%s\n", path);
 
 		if (strcmp(curr->d_name, "..") != 0 && strcmp(curr->d_name, ".") != 0)
 		{
@@ -236,10 +232,26 @@ int main(int argc, char const *argv[])
 		}
 		else
 		{			
-			char foo[128] = "./";
-			strcat(foo, argv[argc-1]);
+			char path[128] = "./";
+			strcat(path, argv[argc-1]);
 
-			recursiveFunc(argv[argc-2], foo);
+			struct stat st;
+
+			if (stat(path, &st) != 0)
+			{
+				printf("Error reading file!\n");
+				return 1;
+			} 
+
+			if (S_ISDIR(st.st_mode))
+			{
+				recursiveFunc(argv[argc-2], path);
+			}
+			else // If the filename is not a directory -r is meaningless
+			{
+				options[5] = 0;
+				mainFunc(argv[argc-2], path);
+			}
 		}
 	}
 	else
