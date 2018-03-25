@@ -59,12 +59,12 @@ int mainFunc(const char* pattern, const char* filename)
 
 			if (options[1]) // -l, prints only the filenames of files with matches to pattern.
 			{
-				printf("%s\n", filename);
+				printf("%s\n", filename+2);
 
 				fclose(file);
 				return 0;
 			}
-			else
+			else if (!options[3])
 			{
 				if (options[5]) // -r, prints the filename if recursive option is activated
 					printf("%s:", filename+2);
@@ -83,13 +83,14 @@ int mainFunc(const char* pattern, const char* filename)
 
 	if (options[3]) // -c, prints the number of matches.
 	{
+		if (options[5]) // -r, prints the filename if recursive option is activated
+			printf("%s:", filename+2);
+
 		printf("%u\n", matchCounter);
 	}
 
 	return 0;
 }
-
-// Coisas
 
 int recursiveFunc(const char* pattern, const char* dirname)
 {
@@ -98,12 +99,10 @@ int recursiveFunc(const char* pattern, const char* dirname)
 	struct stat st;
 	pid_t pid;
 	char path[512]; // Path of the file
-	char dir[512]; // path of the current directory
-	strcpy(dir, dirname);
 
 	while ((curr = readdir(currdr)) != NULL)
 	{
-		sprintf(path, "%s/%s", dir, curr->d_name);
+		sprintf(path, "%s/%s", dirname, curr->d_name);
 
 		if (strcmp(curr->d_name, "..") != 0 && strcmp(curr->d_name, ".") != 0)
 		{
