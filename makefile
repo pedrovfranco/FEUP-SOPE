@@ -1,8 +1,8 @@
 cc		 = gcc
 CFLAGS	 = -Wall -g
 LDFLAGS  =
-DEPS	 = simgrep.c aux_fun.c aux_fun.h
-OBJFILES = aux_fun.o simgrep.o
+DEPS	 = simgrep.c aux_fun.c aux_fun.h log.c log.h
+OBJFILES = aux_fun.o simgrep.o log.o
 TARGET	 = simgrep
 
 all: $(TARGET)

@@ -9,6 +9,58 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+const char* strContains(const char* str1, const char* str2, const int options[]) // Searches for str2 in str1
+{
+	int found;
+
+	for (int i = 0; i < strlen(str1); ++i)
+	{
+		found = 1;
+
+		for (int j = 0; j < strlen(str2); ++j)
+		{
+			if (options[0]) // -i, disregard case differences ('A' == 'a').
+			{
+				if (!cmpi(str1[i+j], str2[j])) // Not a match
+				{
+					found = 0;
+					i += j;
+					break;
+				}
+			}
+			else
+			{
+				if (str1[i+j] != str2[j]) // Not a match
+				{
+					found = 0;
+					i += j;
+					break;
+				}
+			}
+		}
+
+		if (found) // Found
+		{
+			if (options[4]) // -w, matches only words, see "man grep" for more info.
+			{
+				if ((i == 0 || !isWordCharacter(str1[i-1])) && (i + strlen(str2) == strlen(str1)-2 || !isWordCharacter(str1[i+strlen(str2)]))) // grep definition of word
+				{
+					return str1+i;
+				}
+				else // Not a word
+				{
+					i += strlen(str2);
+				}
+			}
+			else
+			{
+				return str1+i;
+			}
+		}
+	}
+
+	return NULL;
+}
 
 int isWordCharacter(const char ch)
 {

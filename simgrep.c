@@ -6,65 +6,15 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "dirent.h"
+#include <sys/wait.h>
+#include <dirent.h>
 
 #include "aux_fun.h"
 
 #define BUFFER_SIZE 1024
 
 int options[6] = {0,0,0,0,0,0}; // i, l, n, c, w, r
-int fromstdin = 0; // Flag the determines whether the program is reading from a file or from the standard input
-
-
-
-const char* strContains(const char* str1, const char* str2) // Searches for str2 in str1
-{
-	int found;
-
-	for (int i = 0; i < strlen(str1); ++i)
-	{
-		found = 1;
-
-		for (int j = 0; j < strlen(str2); ++j)
-		{
-			if (options[0]) // -i, disregard case differences ('A' == 'a').
-			{
-				if (!cmpi(str1[i+j], str2[j])) // Not a match
-				{
-					found = 0;
-					// i += j;
-					break;
-				}
-			}
-			else
-			{
-				if (str1[i+j] != str2[j]) // Not a match
-				{
-					found = 0;
-					// i += j;
-					break;
-				}
-			}
-		}
-
-		if (found) // Found
-		{
-			if (options[4]) // -w, matches only words, see "man grep" for more info.
-			{
-				if ((i == 0 || !isWordCharacter(str1[i-1])) && (i + strlen(str2) == strlen(str1)-2 || !isWordCharacter(str1[i+strlen(str2)]))) // grep definition of word
-				{
-					return str1+i;
-				}
-			}
-			else
-			{
-				return str1+i;
-			}
-		}
-	}
-
-	return NULL;
-}
+int fromstdin = 0; // Flag that determines whether the program is reading from a file or from the standard input
 
 int mainFunc(const char* pattern, const char* filename)
 {
@@ -101,9 +51,9 @@ int mainFunc(const char* pattern, const char* filename)
 		getline(&buffer, &bufferSize, file);
 
 		if (buffer[strlen(buffer)-1] != '\n')
-					strcat(buffer, "\n");
+			strcat(buffer, "\n");
 
-		if (strContains(buffer, pattern) != NULL)
+		if (strContains(buffer, pattern, options) != NULL)
 		{
 			matchCounter++;
 
@@ -115,13 +65,13 @@ int mainFunc(const char* pattern, const char* filename)
 				return 0;
 			}
 			else
-			{	
+			{
 				if (options[5]) // -r, prints the filename if recursive option is activated
 					printf("%s:", filename+2);
 
 				if (options[2]) // -n, iniciates the print with the line number.
 					printf("%u:", iteCounter+1);
-				
+
 				printf("%s", buffer);
 			}
 		}
@@ -139,31 +89,50 @@ int mainFunc(const char* pattern, const char* filename)
 	return 0;
 }
 
+// Coisas
 
 int recursiveFunc(const char* pattern, const char* dirname)
 {
 	DIR* currdr = opendir(dirname);
 	struct dirent *curr;
 	struct stat st;
-	char path[1024];
+	pid_t pid;
+	char path[512]; // Path of the file
+	char dir[512]; // path of the current directory
+	strcpy(dir, dirname);
 
 	while ((curr = readdir(currdr)) != NULL)
 	{
-		sprintf(path, "%s/%s", dirname, curr->d_name);
+		sprintf(path, "%s/%s", dir, curr->d_name);
 
 		if (strcmp(curr->d_name, "..") != 0 && strcmp(curr->d_name, ".") != 0)
 		{
 			if (stat(path, &st) == 0)
 			{
-				if (S_ISDIR(st.st_mode))
+				if (S_ISDIR(st.st_mode)) // Is a directory
 				{
-					recursiveFunc(pattern, path);
+					pid = fork();
+
+					if (pid > 0) // Parent
+					{
+						wait(NULL);
+					}
+					else if (pid == 0) // Child
+					{
+						return recursiveFunc(pattern, path);
+					}
+					else
+					{
+						printf("Fork error\n");
+						return 1;
+					}
 				}
-				else
+				else // Is a regular file
 				{
-					mainFunc(pattern, path);
+					if (mainFunc(pattern, path) != 0)
+						return 1;
 				}
-			
+
 			}
 		}
 	}
@@ -221,17 +190,17 @@ int main(int argc, char const *argv[])
 				return errorMessage();
 			}
 		}
-		
-	}	
+
+	}
 
 	if (options[5]) // -r, grabs files recursively
 	{
 		if (argc == 2 || argv[argc-2][0] == '-') // no filename in arguments
 		{
-			recursiveFunc(argv[argc-1], ".");
+			return recursiveFunc(argv[argc-1], ".");
 		}
 		else
-		{			
+		{
 			char path[128] = "./";
 			strcat(path, argv[argc-1]);
 
@@ -241,16 +210,16 @@ int main(int argc, char const *argv[])
 			{
 				printf("Error reading file!\n");
 				return 1;
-			} 
+			}
 
 			if (S_ISDIR(st.st_mode))
 			{
-				recursiveFunc(argv[argc-2], path);
+				return recursiveFunc(argv[argc-2], path);
 			}
 			else // If the filename is not a directory -r is meaningless
 			{
 				options[5] = 0;
-				mainFunc(argv[argc-2], path);
+				return mainFunc(argv[argc-2], path);
 			}
 		}
 	}
@@ -266,7 +235,7 @@ int main(int argc, char const *argv[])
 			return mainFunc(argv[argc-2], argv[argc-1]);
 		}
 	}
-	
+
 
 	return 1;
 }
