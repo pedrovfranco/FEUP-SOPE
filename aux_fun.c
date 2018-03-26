@@ -12,12 +12,13 @@
 const char* strContains(const char* str1, const char* str2, const int options[]) // Searches for str2 in str1
 {
 	int found;
-
-	for (int i = 0; i < strlen(str1); ++i)
+	
+	unsigned int i, j;
+	for (i = 0; i < strlen(str1); ++i)
 	{
 		found = 1;
 
-		for (int j = 0; j < strlen(str2); ++j)
+		for (j = 0; j < strlen(str2); ++j)
 		{
 			if (options[0]) // -i, disregard case differences ('A' == 'a').
 			{
@@ -49,7 +50,7 @@ const char* strContains(const char* str1, const char* str2, const int options[])
 				}
 				else // Not a word
 				{
-					i += strlen(str2);
+					i += j;
 				}
 			}
 			else
