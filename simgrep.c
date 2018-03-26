@@ -76,8 +76,6 @@ int mainFunc(const char* pattern, const char* filename)
 
 	if (file != stdin)
 	{
-		// printf("Path = %s\n", filename);
-
 		char foobar[128] = "";
 		
 		if (filename[0] == '.' && filename[1] == '/') // If there is "./" in the path then discard it
@@ -102,6 +100,7 @@ int mainFunc(const char* pattern, const char* filename)
 
 	unsigned int iteCounter = 0;
 	unsigned int matchCounter = 0;
+
 
 	while(!feof(file))
 	{

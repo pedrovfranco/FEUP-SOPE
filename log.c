@@ -34,7 +34,8 @@ double getTime(void) // Gets the elapsed time in milliseconds
 
 int logPrint(const char* output)
 {
-	int res = fprintf(file, "%.2f - %u - %s\n", getTime(), getpid(), output);
+	int res = fprintf(file, "%.2f - %u - %s\n", getTime(), getpid(), output);	
+	fflush(file);	
 
 	if (res < 0)
 		printf("Error writing to log file!\n");
