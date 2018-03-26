@@ -1,7 +1,7 @@
 cc		 = gcc
-CFLAGS	 = -Wall -g
+CFLAGS	 = -Wall -Wextra -Werror -g
 LDFLAGS  =
-DEPS	 = simgrep.c aux_fun.c aux_fun.h log.c log.h
+DEPS	 = simgrep.c aux_fun.c aux_fun.h log.c log.h makefile
 OBJFILES = aux_fun.o simgrep.o log.o
 TARGET	 = simgrep
 
