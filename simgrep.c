@@ -76,7 +76,9 @@ int mainFunc(const char* pattern, const char* filename)
 
 	if (file != stdin)
 	{
-		char foobar[128];
+		// printf("Path = %s\n", filename);
+
+		char foobar[128] = "";
 		
 		if (filename[0] == '.' && filename[1] == '/') // If there is "./" in the path then discard it
 			sprintf(foobar, "ABERTO %s", filename+2);
@@ -100,7 +102,6 @@ int mainFunc(const char* pattern, const char* filename)
 
 	unsigned int iteCounter = 0;
 	unsigned int matchCounter = 0;
-
 
 	while(!feof(file))
 	{
@@ -190,9 +191,9 @@ int recursiveFunc(const char* pattern, const char* dirname)
 		sprintf(path, "%s/%s", dirname, curr->d_name);
 
 		if (strcmp(curr->d_name, "..") != 0 && strcmp(curr->d_name, ".") != 0)
-		{
+		{			
 			if (stat(path, &st) == 0)
-			{
+			{	
 				if (S_ISDIR(st.st_mode)) // Is a directory
 				{
 					pid = fork();
@@ -217,6 +218,10 @@ int recursiveFunc(const char* pattern, const char* dirname)
 						return 1;
 				}
 
+			}
+			else
+			{
+				printf("Error reading file stat!\n");
 			}
 		}
 	}
