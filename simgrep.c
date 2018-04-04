@@ -237,6 +237,12 @@ int main(int argc, char *argv[])
 		return errorMessage();
 	}
 
+	if (getenv("LOGFILENAME") == NULL)
+	{
+		fprintf(stderr, "Must define environment variable LOGFILENAME!\n");
+		return 1;
+	}
+
 	start(getenv("LOGFILENAME"));
 
 	char cmd[128] = "";

@@ -14,11 +14,11 @@ const char* strContains(const char* str1, const char* str2, const int options[])
 	int found;
 	
 	unsigned int i, j;
-	for (i = 0; i < strlen(str1); ++i)
+	for (i = 0; i < strlen(str1); ++i) // Iterator of str1
 	{
 		found = 1;
 
-		for (j = 0; j < strlen(str2); ++j)
+		for (j = 0; j < strlen(str2); ++j) // Iterator of str2
 		{
 			if (options[0]) // -i, disregard case differences ('A' == 'a').
 			{
