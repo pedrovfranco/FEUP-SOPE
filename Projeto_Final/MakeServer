@@ -1,0 +1,14 @@
+# Makefile for Server Program
+
+COMPILER_TYPE = gnu
+
+CC = gcc
+
+PROG = server
+SRCS = server.c
+
+CFLAGS = -Wall
+
+
+$(PROG) : $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
