@@ -17,3 +17,7 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+// TODO:
+// - Criar o FIFO requests que recebe os pedidos de reserva
+// - Criar as threads bilheteira
