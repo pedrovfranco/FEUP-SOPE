@@ -9,11 +9,13 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
+#include "request.h"
+
 
 int ANSWERS_FIFO_FD; // File descriptor do fifo de requests
 int REQUESTS_FIFO_FD;
-char * ANSWERS_FIFO_PATH = "/temp/ans"; // Path do fifo requests
-char * REQUESTS_FIFO_PATH = "/temp/requests"; // Path do fifo requests
+char * ANSWERS_FIFO_PATH; // Path do fifo requests
+char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 void makeAnswerFIFO()
 {
@@ -41,17 +43,28 @@ void openRequestsFIFO()
 	}
 }
 
+void sendRequest()
+{
+  Request *request = malloc(sizeof(Request));
+  request->clientPID = 5;
+  request->seatNum = 3;
+
+  write(REQUESTS_FIFO_FD, request, sizeof(Request));
+}
+
 int main(int argc, char *argv[]) {
   printf("** Running process %d (PGID %d) **\n", getpid(), getpgrp());
 
   if (argc == 4)
     printf("ARGS: %s | %s | %s\n", argv[1], argv[2], argv[3]);
 
-  //sleep(1);
-  //int clientPID = getpid();
+  ANSWERS_FIFO_PATH = malloc(100);
+  sprintf(ANSWERS_FIFO_PATH, "%s%u", "/tmp/ans", getpid());
 
   makeAnswerFIFO();
   openRequestsFIFO();
+  sendRequest();
+
 
   close(REQUESTS_FIFO_FD);
   close(ANSWERS_FIFO_FD);

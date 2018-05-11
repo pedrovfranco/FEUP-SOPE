@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "requests.h"
+#include "request.h"
 
 typedef struct {
 	int maxSize;
