@@ -1,15 +1,14 @@
-# Makefile for Server Program
+cc		 = gcc
+CFLAGS	 = -Wall -Wextra -g
+LDFLAGS  = -pthread
+DEPS	 = server.c queue.c queue.h
+OBJFILES = server.o queue.o
+TARGET	 = server
 
-COMPILER_TYPE = gnu
+all: $(TARGET)
 
-CC = gcc
+$(TARGET): $(OBJFILES) $(DEPS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJFILES) $(LDFLAGS)
 
-PROG = server
-SRCS = server.c
-
-LDFLAGS=-pthread 
-CFLAGS = -Wall
-
-
-$(PROG) : $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) $(LDFLAGS) -o $(PROG)
+clean:
+	rm -f $(OBJFILES) $(TARGET) *~

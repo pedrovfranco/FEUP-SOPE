@@ -1,9 +1,4 @@
-#Changed to function as a whitelist
-*
-!simgrep.c
-!aux_fun.c
-!aux_fun.h
-!log.c
-!log.h
-!makefile
-!Enunciado.pdf
+*.o
+*.d
+server
+main

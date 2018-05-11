@@ -9,19 +9,15 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
+#include "queue.h"
+#include "requests.h"
+
 int NUM_ROOM_SEATS; // Nmr de lugares disponiveis
 int NUM_TICKET_OFFICES; // Nmr de bilheteiras
 int OPEN_TIME = 0; // Tempo de funcionamento das bilheteiras
 
 int REQUESTS_FIFO_FD; // File descriptor do fifo de requests
-char * REQUESTS_FIFO_PATH = "/temp/requests"; // Path do fifo requests
-
-
-typedef struct{
-  int clientPID;
-  int nSeats;
-  int * seats;
-} Request;
+char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 typedef struct{
   int seatId;
@@ -29,7 +25,8 @@ typedef struct{
   int isTaken; // 0 esta livre 1 esta ocupado
 }Seat;
 
-//Request buffer[99];
+
+Request* buffer[99];
 
 int isSeatFree(Seat *seats, int seatNum) // 0 esta livre 1 ocupado 2 n existe esse lugar
 {
@@ -93,8 +90,18 @@ void * listenRequests(void * arg)
   Request * request = malloc(sizeof(Request));
   int bytes;
 
-  while( (bytes = read(REQUESTS_FIFO_FD, request, sizeof(Request))) > 0)
+  while (1)
   {
+    usleep(1000*10); //10 milisegundos
+
+    if ( (bytes = read(REQUESTS_FIFO_FD, request, sizeof(Request))) > 0)
+    {
+      printf("Gottim!\n");
+
+
+
+    }
+
     // Colocar o request num buffer de requests
     // As threads bilheteira devem pegar no request e tentam reservar os lugares desse pedido
   }
