@@ -47,7 +47,10 @@ void sendRequest()
 {
   Request *request = malloc(sizeof(Request));
   request->clientPID = 5;
-  request->seatNum = 3;
+
+  time_t t;
+  srand((unsigned) time(&t));
+  request->seatNum = rand()%20;
 
   write(REQUESTS_FIFO_FD, request, sizeof(Request));
 }

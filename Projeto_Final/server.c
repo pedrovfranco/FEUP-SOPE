@@ -32,13 +32,11 @@ int openFIFO(char* filename)
 {
 	int fd;
 
-	// if ( (fd = open(filename, O_RDONLY)) == -1 ) {
-	// 	printf("Hortalicas\n");
-	// 	perror("Failed to open REQUESTS_FIFO");
-	// 	exit(1);
-	// }
-
-	fd = open(filename, O_RDONLY);
+	if ( (fd = open(filename, O_RDONLY)) == -1 ) {
+		printf("Hortalicas\n");
+		perror("Failed to open REQUESTS_FIFO");
+		exit(1);
+	}
 
 	return fd;
 }
@@ -55,9 +53,9 @@ void createFIFO(char* filename)
 
 int isSeatFree(Seat *seats, int seatNum) // 0 esta livre 1 ocupado 2 n existe esse lugar
 {
-	if (seatNum >= NUM_ROOM_SEATS)
+	if (seatNum > NUM_ROOM_SEATS || seatNum < 1)
 		return 2;
-	else if (seats[seatNum].clientPID == -1)
+	else if (seats[seatNum-1].clientPID == -1)
 		return 0;
 	else
 		return 1;
@@ -65,24 +63,14 @@ int isSeatFree(Seat *seats, int seatNum) // 0 esta livre 1 ocupado 2 n existe es
 
 void bookSeat(Seat *seats, int seatNum, int clientId)
 {
-	seats[seatNum].clientPID = clientId;	
+	seats[seatNum-1].clientPID = clientId;	
 }
 
 void freeSeat(Seat *seats, int seatNum)
 {
-	seats[seatNum].clientPID = -1;
+	seats[seatNum-1].clientPID = -1;
 }
 
-void * requestGenerator(void * arg)
-{
-	// Esta inicializado a 0 mas n e para o ser
-	Request *request = malloc(sizeof(Request));
-	request->clientPID = 5; // Para mudar
-	request->seatNum = 3;
-
-	write(REQUESTS_FIFO_FD, request, sizeof(Request));
-	pthread_exit(NULL);
-}
 
 void * listenRequests(void * arg)
 {
@@ -126,7 +114,9 @@ void * handleRequests(void * arg)
 			printf("Handled\n");
 			request = qremoveData(requestBuffer);
 
-			if (isSeatFree(seats, request->clientPID) == 0)
+			printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum);
+
+			if (isSeatFree(seats, request->seatNum) == 0)
 			{
 				printf("Livre\n");
 				bookSeat(seats, request->seatNum, request->clientPID);
@@ -171,31 +161,24 @@ int main(int argc, char *argv[]) {
 		seats[i].clientPID = -1;
 	}
 
- //  // Threads auxiliares - tentam reservar os lugares
- //  pthread_t tid1;
- //  if (pthread_create(&tid1, NULL, requestGenerator, NULL) != 0){
-	// printf("Error creating auxiliary threads");
-	// exit(1);
- //  }
-
   // Main Thread - recebe os requests(FIFO) e coloca os num buffer para serem recolhidos pelas threads bilheteira
-  pthread_t tid2;
-  if (pthread_create(&tid2, NULL, listenRequests, NULL) != 0){
+  pthread_t tid1;
+  if (pthread_create(&tid1, NULL, listenRequests, NULL) != 0){
 	printf("Error creating main thread");
 	exit(1);
   }
 
   // Bilheteira thread - 
-  pthread_t tid3;
-  if (pthread_create(&tid3, NULL, handleRequests, seats) != 0){
+  pthread_t tid2;
+  if (pthread_create(&tid2, NULL, handleRequests, seats) != 0){
 		  printf("Error creating ticket booth thread");
 		  exit(1);
   }
 
 
   // pthread_join(tid1, NULL);
+  pthread_join(tid1, NULL);
   pthread_join(tid2, NULL);
-  pthread_join(tid3, NULL);
 
   //Close file descriptors
   close(REQUESTS_FIFO_FD);
