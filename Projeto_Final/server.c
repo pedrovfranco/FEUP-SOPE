@@ -14,30 +14,107 @@ int NUM_TICKET_OFFICES; // Nmr de bilheteiras
 int OPEN_TIME = 0; // Tempo de funcionamento das bilheteiras
 
 int REQUESTS_FIFO_FD; // File descriptor do fifo de requests
-char * REQUESTS_FIFO_PATH; // Path do fifo requests
+char * REQUESTS_FIFO_PATH = "/temp/requests"; // Path do fifo requests
 
 
 typedef struct{
   int clientPID;
   int nSeats;
-  int seats[];
+  int * seats;
 } Request;
+
+typedef struct{
+  int seatId;
+  int clientPID;
+  int isTaken; // 0 esta livre 1 esta ocupado
+}Seat;
+
+//Request buffer[99];
+
+int isSeatFree(Seat *seats, int seatNum) // 0 esta livre 1 ocupado 2 n existe esse lugar
+{
+  for (int i = 0; i < NUM_ROOM_SEATS; i++)
+  {
+    if (seats->seatId == seatNum)
+    {
+      if (seats->isTaken == 0)
+      {
+        return 0;
+      }
+      else 
+        return 1;
+    }
+    //seats += sizeof(Seat);
+    seats++;
+  }
+  return 2;
+}
+
+void bookSeat(Seat *seats, int seatNum, int clientId){
+  for (int i = 0; i < NUM_ROOM_SEATS; i++)
+  {
+    if (seats->seatId == seatNum)
+    {
+      seats->isTaken = 1;
+      seats->clientPID = clientId;
+    }
+    //seats += sizeof(Seat);
+    seats++;
+  }
+}
+
+void freeSeat(Seat *seats, int seatNum){
+    for (int i = 0; i < NUM_ROOM_SEATS; i++)
+  {
+    if (seats->seatId == seatNum)
+    {
+      seats->isTaken = 0;
+      seats->clientPID = 0;
+    }
+    //seats += sizeof(Seat);
+    seats++;
+  }
+}
 
 void * requestGenerator(void * arg)
 {
+  // Esta inicializado a 0 mas n e para o ser
+  Request *request = malloc(sizeof(Request));
+  request->clientPID = 0; // Para mudar
+  request->nSeats = 0;
+  request->seats = NULL;
 
+  write(REQUESTS_FIFO_FD, request, sizeof(Request));
+  pthread_exit(NULL);
 }
 
 void * listenRequests(void * arg)
 {
+  Request * request = malloc(sizeof(Request));
+  int bytes;
 
+  while( (bytes = read(REQUESTS_FIFO_FD, request, sizeof(Request))) > 0)
+  {
+    // Colocar o request num buffer de requests
+    // As threads bilheteira devem pegar no request e tentam reservar os lugares desse pedido
+  }
 }
 
 void openRequestsFIFO()
 {
-	if ( (REQUESTS_FIFO_FD = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
+	if ( (REQUESTS_FIFO_FD = open(REQUESTS_FIFO_PATH, O_RDONLY)) == -1 ) {
 		perror("Failed to open REQUESTS_FIFO");
 		exit(1);
+	}
+}
+
+void makeRequestsFIFO()
+{
+	if (mkfifo(REQUESTS_FIFO_PATH, 0660) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
+		}
 	}
 }
 
@@ -54,7 +131,11 @@ int main(int argc, char *argv[]) {
   NUM_TICKET_OFFICES = atoi(argv[2]);
   OPEN_TIME = atoi(argv[3]);
 
-  // Abertura do fifo de requests (falta meter o path)
+  //Criacao do fifo de requests
+  makeRequestsFIFO();
+
+  // Abertura do fifo de requests
+  // TODO: Abrir os fifos que vem dos clientes
   openRequestsFIFO();
 
   // Threads auxiliares - tentam reservar os lugares
