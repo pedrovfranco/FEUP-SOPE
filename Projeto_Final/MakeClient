@@ -5,10 +5,10 @@ COMPILER_TYPE = gnu
 CC = gcc
 
 PROG = client
-SRCS = client_v2.c
+SRCS = client_v2.c 
 
 CFLAGS = -Wall
 
 
 $(PROG) : $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
+	$(CC) $(CFLAGS) $(SRCS) 

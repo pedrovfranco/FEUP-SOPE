@@ -1,11 +1,13 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
-#include ""
+//#include ""
+#define MAX_CLI_SEATS 99
+
 
 typedef struct{
   int clientPID;
-  int seatNum;
+  int seatNum[MAX_CLI_SEATS];
 } Request;
 
 

@@ -9,8 +9,16 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
-#include "queue.h"
 #include "request.h"
+#include "queue.h"
+
+
+// Macros
+#define MAX_ROOM_SEATS 9999
+#define MAX_CLI_SEATS 99
+#define WIDTH_PID 5
+#define WIDTH_XXNN 5
+#define WIDTH_SEAT 4
 
 int NUM_ROOM_SEATS; // Nmr de lugares disponiveis
 int NUM_TICKET_OFFICES; // Nmr de bilheteiras
@@ -20,7 +28,6 @@ int REQUESTS_FIFO_FD; // File descriptor do fifo de requests
 char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 queue* requestBuffer;
-
 
 typedef struct{
 	int clientPID; //-1 se for um lugar vago
@@ -45,6 +52,7 @@ void createFIFO(char* filename)
 {
 	if (mkfifo(filename, 0660) < 0) {
 		if (errno != EEXIST) {
+
 			perror("Error creating FIFO");
 			exit(1);
 		}
@@ -105,7 +113,8 @@ void * handleRequests(void * arg)
 	char * client_fifo_path;
 	Request* request;
 
-	while (1)
+
+	while (0)
 	{
 		usleep(1000*10); //Sleep for 10 milliseconds
 
@@ -114,20 +123,23 @@ void * handleRequests(void * arg)
 			printf("Handled\n");
 			request = qremoveData(requestBuffer);
 
-			printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum);
+			
 
-			if (isSeatFree(seats, request->seatNum) == 0)
+			for (int i = 0; i < MAX_CLI_SEATS; i++)
 			{
-				printf("Livre\n");
-				bookSeat(seats, request->seatNum, request->clientPID);
-			}
-			else
-			{
-				printf("Ocupado\n");
+				printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum[i]);
+				if (isSeatFree(seats, request->seatNum[i]) == 0)
+				{
+					printf("Livre\n");
+					bookSeat(seats, request->seatNum[i], request->clientPID);
+				}
+				else
+				{
+					printf("Ocupado\n");
+				}
 			}
 		}
 	}
-
 
 	pthread_exit(NULL);
 }
