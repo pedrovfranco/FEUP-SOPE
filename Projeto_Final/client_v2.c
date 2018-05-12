@@ -17,6 +17,7 @@
 
 typedef struct{
   int clientPID;
+  int nSeats;
   int seatNum[MAX_CLI_SEATS];
 } Request;
 
@@ -66,6 +67,8 @@ void sendRequest()
 {
   Request *request = malloc(sizeof(Request));
   request->clientPID = clientPID;
+  request->nSeats = num_wanted_seats;
+  
   for (int i = 0; i < MAX_CLI_SEATS; i++)
   {
     request->seatNum[i] = pref_seat_list[i];

@@ -7,6 +7,7 @@
 
 typedef struct{
   int clientPID;
+  int nSeats;
   int seatNum[MAX_CLI_SEATS];
 } Request;
 

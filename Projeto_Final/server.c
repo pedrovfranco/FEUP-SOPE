@@ -114,7 +114,7 @@ void * handleRequests(void * arg)
 	Request* request;
 
 
-	while (0)
+	while (1)
 	{
 		usleep(1000*10); //Sleep for 10 milliseconds
 
@@ -123,21 +123,67 @@ void * handleRequests(void * arg)
 			printf("Handled\n");
 			request = qremoveData(requestBuffer);
 
-			
+			int reservedSeats[99];
 
-			for (int i = 0; i < MAX_CLI_SEATS; i++)
+			for (int i = 0; i < 99; i++)
 			{
-				printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum[i]);
-				if (isSeatFree(seats, request->seatNum[i]) == 0)
+				reservedSeats[i] = -1;
+			}
+
+			int n = request->nSeats;
+			for (int j = 0; j < request->nSeats; j++)
+			{
+				for (int i = 0; i < MAX_CLI_SEATS; i++)
 				{
-					printf("Livre\n");
-					bookSeat(seats, request->seatNum[i], request->clientPID);
-				}
-				else
-				{
-					printf("Ocupado\n");
+					printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum[i]);
+					if (isSeatFree(seats, request->seatNum[i]) == 0)
+					{
+						printf("Livre\n");
+						bookSeat(seats, request->seatNum[i], request->clientPID);
+						i = 0;
+						n--;
+						reservedSeats[j] = request->seatNum[i];
+						j++;
+						
+					}
+					else
+					{
+						printf("Ocupado\n");
+					}
 				}
 			}
+
+			// Se o n nao estiver a 0 foi pq n reservou todos os lugares entao temos de descartar o pedido
+
+			int answer[100];
+
+			// Inicializar a -1
+			for (int m = 0; m < 100; m++)
+			{
+				answer[m] = -1;
+			}
+
+			if (n != 0)
+			{
+				for (int i = 0; i < MAX_CLI_SEATS; i++)
+				{
+					if (seats[i].clientPID == request->clientPID)
+					{
+						freeSeat(seats, i);
+					}
+				}
+				answer[0] = -1;
+			}
+			else{
+				answer[0] = request->nSeats;
+				for (int i = 1; i < 100; i++)
+				{
+					answer[i] = reservedSeats[i - 1];
+				}
+			}
+
+			write(client_fifo_pd, answer, sizeof(answer));
+
 		}
 	}
 
