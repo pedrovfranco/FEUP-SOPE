@@ -34,6 +34,40 @@ typedef struct{
 } Seat;
 
 
+int hasInvalidSeat(int* arr, int arrSize) // Returns 1 if true and 0 otherwise
+{
+	for (int i = 0; i < arrSize; ++i)
+	{
+		if (arr[i] < 1 || arr[i] > MAX_ROOM_SEATS)
+			return 1;
+	}
+
+	return 0;
+}
+
+
+int pickAnswer(Seat* seats, Request* request)
+{
+	if (request->nSeats > MAX_CLI_SEATS)
+	{
+		return -1;
+	}
+	else if (request->seatNumSize < num_wanted_seats || request->seatNumSize > MAX_CLI_SEATS)
+	{
+		return -2;
+	}
+	else if (hasInvalidSeat(request->seatNum, request->seatNumSize))
+	{
+		return -3;
+	}
+	else if (isRoomFull(seats))
+	{
+		return -6;
+	}
+
+	return -7;
+}
+
 
 int openFIFO(char* filename)
 {
@@ -79,6 +113,19 @@ void freeSeat(Seat *seats, int seatNum)
 	seats[seatNum-1].clientPID = -1;
 }
 
+int isRoomFull(Seat* seats)
+{
+	for (int i = 0; i < NUM_ROOM_SEATS; ++i)
+	{
+		if (isSeatFree(seats, i) == 0)
+		{
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 
 void * listenRequests(void * arg)
 {
@@ -90,14 +137,14 @@ void * listenRequests(void * arg)
 	{
 		usleep(1000*10); //10 milisegundos
 
-	 if ( (bytes = read(REQUESTS_FIFO_FD, auxiliaryRequest, sizeof(Request))) > 0)
-	 {
-		printf("Listened\n");
+		if ( (bytes = read(REQUESTS_FIFO_FD, auxiliaryRequest, sizeof(Request))) > 0)
+		{
+			printf("Listened\n");
 
-		request = malloc(sizeof(Request));
-		*request = *auxiliaryRequest;
-		qinsert(requestBuffer, request);
-	 }
+			request = malloc(sizeof(Request));
+			*request = *auxiliaryRequest;
+			qinsert(requestBuffer, request);
+		}
 
 	 // Colocar o request num buffer de requests
 	 // As threads bilheteira devem pegar no request e tentam reservar os lugares desse pedido
@@ -112,7 +159,9 @@ void * handleRequests(void * arg)
 	int client_fifo_pd;
 	char * client_fifo_path;
 	Request* request;
-
+	int answer;
+	int *reservedSeats;
+	int reservedSeatsSize = 0;
 
 	while (1)
 	{
@@ -123,68 +172,89 @@ void * handleRequests(void * arg)
 			printf("Handled\n");
 			request = qremoveData(requestBuffer);
 
-			int reservedSeats[99];
+			answer = pickAnswer(request);
+			reservedSeats = malloc(sizeof(int)*request->nSeats);
 
-			for (int i = 0; i < 99; i++)
+			if (answer == -7)
 			{
-				reservedSeats[i] = -1;
-			}
+				answer = 0;
 
-			for (int j = 0; j < request->nSeats; j++)
-			{
+				int j = 0;
+				for (int i = 0; i < request->seatNumSize && j < reservedSeatsSize; i++)
+				{
 					printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum[i]);
 					if (isSeatFree(seats, request->seatNum[i]) == 0)
 					{
 						printf("Livre\n");
+						reservedSeats[reservedSeatsSize] = request->seatNum[i];
+						reservedSeatsSize++;
 						bookSeat(seats, request->seatNum[i], request->clientPID);
-						i = 0;
-						n--;
-						reservedSeats[j] = request->seatNum[i];
-						j++;
-						
-					}
-					else
-					{
-						printf("Ocupado\n");
 					}
 				}
+
+				if (j < reservedSeatsSize) //Failed
+				{
+					for (int j = 0; j < reservedSeatsSize; ++j) //Frees reserved seats
+					{
+						freeSeat(seats, reservedSeats[i]);
+					}
+
+					answer = -5;
+				}
 			}
+
+			if (answer == 0) //Sucess
+			{
+				write(client_fifo_pd, reservedSeatsSize, sizeof(reservedSeatsSize));
+				
+				for (int i = 0; i < reservedSeatsSize; ++i)
+				{
+					write(client_fifo_pd, reservedSeats[i], sizeof(reservedSeats[i]));
+				}
+			}
+			else
+			{
+				write(client_fifo_pd, answer, sizeof(answer));
+			}
+
+			
+		}
 
 			// Se o n nao estiver a 0 foi pq n reservou todos os lugares entao temos de descartar o pedido
 
-			int answer[100];
+		int answer[100];
 
 			// Inicializar a -1
-			for (int m = 0; m < 100; m++)
-			{
-				answer[m] = -1;
-			}
-
-			if (n != 0)
-			{
-				for (int i = 0; i < MAX_CLI_SEATS; i++)
-				{
-					if (seats[i].clientPID == request->clientPID)
-					{
-						freeSeat(seats, i);
-					}
-				}
-				answer[0] = -1;
-			}
-			else{
-				answer[0] = request->nSeats;
-				for (int i = 1; i < 100; i++)
-				{
-					answer[i] = reservedSeats[i - 1];
-				}
-			}
-
-			write(client_fifo_pd, answer, sizeof(answer));
-
+		for (int m = 0; m < 100; m++)
+		{
+			answer[m] = -1;
 		}
-	}
 
-	pthread_exit(NULL);
+		if (n != 0)
+		{
+			for (int i = 0; i < MAX_CLI_SEATS; i++)
+			{
+				if (seats[i].clientPID == request->clientPID)
+				{
+					freeSeat(seats, i);
+				}
+			}
+			answer[0] = -1;
+		}
+		else{
+			answer[0] = request->nSeats;
+			for (int i = 1; i < 100; i++)
+			{
+				answer[i] = reservedSeats[i - 1];
+			}
+		}
+
+		write(client_fifo_pd, answer, sizeof(answer));
+
+	}
+}
+
+pthread_exit(NULL);
 }
 
 
@@ -217,32 +287,32 @@ int main(int argc, char *argv[]) {
 	}
 
   // Main Thread - recebe os requests(FIFO) e coloca os num buffer para serem recolhidos pelas threads bilheteira
-  pthread_t tid1;
-  if (pthread_create(&tid1, NULL, listenRequests, NULL) != 0){
-	printf("Error creating main thread");
-	exit(1);
-  }
+	pthread_t tid1;
+	if (pthread_create(&tid1, NULL, listenRequests, NULL) != 0){
+		printf("Error creating main thread");
+		exit(1);
+	}
 
   // Bilheteira thread - 
-  pthread_t tid2;
-  if (pthread_create(&tid2, NULL, handleRequests, seats) != 0){
-		  printf("Error creating ticket booth thread");
-		  exit(1);
-  }
+	pthread_t tid2;
+	if (pthread_create(&tid2, NULL, handleRequests, seats) != 0){
+		printf("Error creating ticket booth thread");
+		exit(1);
+	}
 
 
   // pthread_join(tid1, NULL);
-  pthread_join(tid1, NULL);
-  pthread_join(tid2, NULL);
+	pthread_join(tid1, NULL);
+	pthread_join(tid2, NULL);
 
   //Close file descriptors
-  close(REQUESTS_FIFO_FD);
+	close(REQUESTS_FIFO_FD);
 
   // Delete FIFOS
-  unlink(REQUESTS_FIFO_PATH);
+	unlink(REQUESTS_FIFO_PATH);
 
 
   // Fica a faltar a parte de escrever nos ficheiros e da sincronizacao das threads
 
-  return 0;
+	return 0;
 }
