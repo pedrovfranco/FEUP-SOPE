@@ -1,14 +1,14 @@
-# Makefile for Client Program
+cc		 = gcc
+CFLAGS	 = -Wall -Wextra -g
+LDFLAGS  =
+DEPS	 = client_v2.c request.c request.h
+OBJFILES = client_v2.o request.o
+TARGET	 = client
 
-COMPILER_TYPE = gnu
+all: $(TARGET)
 
-CC = gcc
+$(TARGET): $(OBJFILES) $(DEPS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJFILES) $(LDFLAGS)
 
-PROG = client
-SRCS = client_v2.c 
-
-CFLAGS = -Wall
-
-
-$(PROG) : $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) 
+clean:
+	rm -f $(OBJFILES) $(TARGET) *~

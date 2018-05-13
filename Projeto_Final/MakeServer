@@ -1,8 +1,8 @@
 cc		 = gcc
 CFLAGS	 = -Wall -Wextra -g
 LDFLAGS  = -pthread
-DEPS	 = server.c queue.c queue.h
-OBJFILES = server.o queue.o
+DEPS	 = server.c queue.c queue.h request.c request.h
+OBJFILES = server.o queue.o request.o
 TARGET	 = server
 
 all: $(TARGET)

@@ -130,11 +130,8 @@ void * handleRequests(void * arg)
 				reservedSeats[i] = -1;
 			}
 
-			int n = request->nSeats;
 			for (int j = 0; j < request->nSeats; j++)
 			{
-				for (int i = 0; i < MAX_CLI_SEATS; i++)
-				{
 					printf("request.clientPID = %d\nrequest.seatNum = %d\n", request->clientPID, request->seatNum[i]);
 					if (isSeatFree(seats, request->seatNum[i]) == 0)
 					{
