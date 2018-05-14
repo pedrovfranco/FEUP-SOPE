@@ -13,6 +13,7 @@
 #include "queue.h"
 #include "macros.h"
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int NUM_ROOM_SEATS; // Nmr de lugares disponiveis
 int NUM_TICKET_OFFICES; // Nmr de bilheteiras
@@ -184,6 +185,9 @@ void * handleRequests(void * arg)
 			{
 				answer = 0;
 
+				//
+				// pthread_mutex_lock(&mutex);
+
 				int i;
 				for (i = 0; i < request->seatNumSize && reservedSeatsSize < request->nSeats; i++)
 				{
@@ -202,6 +206,9 @@ void * handleRequests(void * arg)
 
 					answer = -5;
 				}
+
+				//
+				// pthread_mutex_unlock(&mutex);
 			}
 
 			client_fifo_path[0] = 0;
@@ -259,6 +266,11 @@ int main(int argc, char *argv[]) {
 		seats[i].clientPID = -1;
 	}
 
+  // Mutex
+
+//   pthread_mutex_init(&mutex, NULL);
+
+
   // Main Thread - recebe os requests(FIFO) e coloca os num buffer para serem recolhidos pelas threads bilheteira
 	pthread_t tid1;
 	if (pthread_create(&tid1, NULL, listenRequests, NULL) != 0){
@@ -267,16 +279,23 @@ int main(int argc, char *argv[]) {
 	}
 
   // Bilheteira thread - 
-	pthread_t tid2;
-	if (pthread_create(&tid2, NULL, handleRequests, seats) != 0){
-		printf("Error creating ticket booth thread");
-		exit(1);
+	pthread_t threads[NUM_TICKET_OFFICES];
+	for(int i = 0;i < NUM_TICKET_OFFICES; i++)
+	{
+		if (pthread_create(&threads[i], NULL, handleRequests, seats) != 0){
+			printf("Error creating ticket booth thread");
+			exit(1);
+		}
+	}
+	pthread_join(tid1, NULL);
+
+	for(int i = 0;i < NUM_TICKET_OFFICES; i++)
+	{
+		pthread_join(threads[i], NULL);
 	}
 
-
-  // pthread_join(tid1, NULL);
-	pthread_join(tid1, NULL);
-	pthread_join(tid2, NULL);
+  //Close mutex 
+//   pthread_mutex_destroy(&mutex);
 
   //Close file descriptors
 	close(REQUESTS_FIFO_FD);
