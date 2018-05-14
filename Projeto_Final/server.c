@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <signal.h>
 
 #include "request.h"
 #include "queue.h"
@@ -24,9 +25,33 @@ char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 queue* requestBuffer;
 
+pthread_t *threads;
+
 typedef struct{
 	int clientPID; //-1 se for um lugar vago
 } Seat;
+
+Seat *seats;
+
+int closedPipe = 0, terminate = 0;
+
+void sigpipe_handler(int signal)
+{
+	UNUSED(signal);
+	closedPipe = 1;
+}
+
+void sigalrm_handler(int signal)
+{
+	UNUSED(signal);
+	kill(0, SIGINT);
+}
+
+void sigint_handler(int signal)
+{
+	UNUSED(signal);
+	terminate = 1;
+}
 
 
 int hasInvalidSeat(int* arr, int arrSize) // Returns 1 if true and 0 otherwise
@@ -76,34 +101,36 @@ void createFIFO(char* filename)
 	}
 }
 
-int isSeatFree(Seat *seats, int seatNum) // 0 esta livre 1 ocupado 2 n existe esse lugar
+int isSeatFree(Seat *s, int seatNum) // 0 esta livre 1 ocupado 2 n existe esse lugar
 {
 	if (seatNum > NUM_ROOM_SEATS || seatNum < 1)
 		return 2;
-	else if (seats[seatNum-1].clientPID == -1)
+	else if (s[seatNum-1].clientPID == -1)
 		return 0;
 	else
 		return 1;
 }
 
-void bookSeat(Seat *seats, int seatNum, int clientId)
+void bookSeat(Seat *s, int seatNum, int clientId)
 {
-	seats[seatNum-1].clientPID = clientId;	
+	DELAY();
+	s[seatNum-1].clientPID = clientId;	
 }
 
-void freeSeat(Seat *seats, int seatNum)
+void freeSeat(Seat *s, int seatNum)
 {
-	seats[seatNum-1].clientPID = -1;
+	DELAY();
+	s[seatNum-1].clientPID = -1;
 }
 
-int isRoomFull(Seat* seats)
+int isRoomFull(Seat* s)
 {
+	DELAY();
+
 	for (int i = 0; i < NUM_ROOM_SEATS; ++i)
 	{
-		if (isSeatFree(seats, i) == 0)
-		{
+		if (isSeatFree(s, i) == 0)
 			return 0;
-		}
 	}
 
 	return 1;
@@ -134,6 +161,8 @@ int pickAnswer(Seat* seats, Request* request)
 
 void * listenRequests(void * arg)
 {
+	UNUSED(arg);
+
 	Request * request;
 	Request * auxiliaryRequest = malloc(sizeof(Request));
 	int bytes;
@@ -151,8 +180,23 @@ void * listenRequests(void * arg)
 			qinsert(requestBuffer, request);
 		}
 
-	 // Colocar o request num buffer de requests
-	 // As threads bilheteira devem pegar no request e tentam reservar os lugares desse pedido
+		if (terminate)
+		{
+			close(REQUESTS_FIFO_FD);
+			unlink(REQUESTS_FIFO_PATH);
+
+			for (int i = 0; i < NUM_TICKET_OFFICES; ++i)
+			{
+				pthread_cancel(threads[i]);
+			}
+
+			for (int i = 0;i < NUM_TICKET_OFFICES; i++)
+			{
+				pthread_join(threads[i], NULL);
+			}
+
+			exit(2);
+		}
 	}
 
 	pthread_exit(NULL);
@@ -160,7 +204,8 @@ void * listenRequests(void * arg)
 
 void * handleRequests(void * arg)
 {
-	Seat* seats = (Seat*) arg;
+	UNUSED(arg);
+
 	int client_fifo_pd;
 	char * client_fifo_path = malloc(100);
 	Request* request;
@@ -172,21 +217,27 @@ void * handleRequests(void * arg)
 	{
 		usleep(1000*10); //Sleep for 10 milliseconds
 
+		pthread_mutex_lock(&mutex);
+
 		if (!qisEmpty(requestBuffer))
 		{
-			printf("Handled\n");
+			answer = 1337;
+			printf("Thread nr %u handled this request\n", *(int*)(arg));
+
 			request = qremoveData(requestBuffer);
 
 			answer = pickAnswer(seats, request);
 			reservedSeats = malloc(sizeof(int)*request->nSeats);
 			reservedSeatsSize = 0;
 
+			client_fifo_path[0] = 0;
+			sprintf(client_fifo_path, "%s%u", "/tmp/ans", request->clientPID);
+
+			client_fifo_pd = openWriteFIFO(client_fifo_path);
+
 			if (answer == -7)
 			{
 				answer = 0;
-
-				//
-				// pthread_mutex_lock(&mutex);
 
 				int i;
 				for (i = 0; i < request->seatNumSize && reservedSeatsSize < request->nSeats; i++)
@@ -205,35 +256,38 @@ void * handleRequests(void * arg)
 						freeSeat(seats, reservedSeats[i]);
 
 					answer = -5;
-				}
-
-				//
-				// pthread_mutex_unlock(&mutex);
+				}	
 			}
 
-			client_fifo_path[0] = 0;
-			sprintf(client_fifo_path, "%s%u", "/tmp/ans", request->clientPID);
-
-			client_fifo_pd = openWriteFIFO(client_fifo_path);
+			// sleep(3);
 
 			if (answer == 0) //Sucess
 			{
-				write(client_fifo_pd, &reservedSeatsSize, sizeof(reservedSeatsSize));
-				
+				if (!closedPipe)
+					write(client_fifo_pd, &reservedSeatsSize, sizeof(reservedSeatsSize));
+
 				for (int i = 0; i < reservedSeatsSize; ++i)
 				{
-					write(client_fifo_pd, &reservedSeats[i], sizeof(reservedSeats[i]));
+					if (!closedPipe)
+						write(client_fifo_pd, &reservedSeats[i], sizeof(reservedSeats[i]));
 				}
 			}
 			else
 			{
-				write(client_fifo_pd, &answer, sizeof(answer));
+				if (!closedPipe)
+					write(client_fifo_pd, &answer, sizeof(answer));
 			}
 
 			close(client_fifo_pd);
 		}
+
+		if (terminate)
+			pthread_exit(NULL);
+
+		pthread_mutex_unlock(&mutex);
 	}
 
+	
 	pthread_exit(NULL);
 }
 
@@ -246,65 +300,95 @@ int main(int argc, char *argv[]) {
 	}
 	printf("ARGS: %s | %s | %s\n", argv[1], argv[2], argv[3]);
 
-  // Inicializacao dos atributos
+  	// Inicializacao dos atributos
 	NUM_ROOM_SEATS = atoi(argv[1]);
 	NUM_TICKET_OFFICES = atoi(argv[2]);
 	OPEN_TIME = atoi(argv[3]);
 
-  //Criacao do fifo de requests
+	alarm(OPEN_TIME);
+
+  	//Criacao do fifo de requests
 	createFIFO(REQUESTS_FIFO_PATH);
 
-  // Abertura do fifo de requests
-  // TODO: Abrir os fifos que vem dos clientes
+  	// Abertura do fifo de requests
+  	// TODO: Abrir os fifos que vem dos clientes
 	REQUESTS_FIFO_FD = openReadFIFO(REQUESTS_FIFO_PATH);
 
 	requestBuffer = qcreate(99); //Creates queue of Resquest pointers with a maximum size of 99
 
-	Seat seats[NUM_ROOM_SEATS];
+	seats = malloc(sizeof(Seat)*NUM_ROOM_SEATS);
 	for (int i = 0; i < NUM_ROOM_SEATS; ++i)
 	{
 		seats[i].clientPID = -1;
 	}
 
-  // Mutex
+	struct sigaction pipeaction;
 
-//   pthread_mutex_init(&mutex, NULL);
+	pipeaction.sa_handler = sigpipe_handler;
+	sigemptyset(&pipeaction.sa_mask);
+	pipeaction.sa_flags = 0;
+
+	if (sigaction(SIGPIPE, &pipeaction, NULL) != 0)
+	{
+		perror("Unable to install SIGPIPE handler\n");
+		return 1;
+	}
+
+	struct sigaction alarmaction;
+
+	alarmaction.sa_handler = sigalrm_handler;
+	sigemptyset(&alarmaction.sa_mask);
+	alarmaction.sa_flags = 0;
+
+	if (sigaction(SIGALRM, &alarmaction, NULL) != 0)
+	{
+		perror("Unable to install SIGALRM handler\n");
+		return 1;
+	}
+
+  	// Mutex
+  	pthread_mutex_init(&mutex, NULL);
 
 
-  // Main Thread - recebe os requests(FIFO) e coloca os num buffer para serem recolhidos pelas threads bilheteira
+  	// Main Thread - recebe os requests(FIFO) e coloca os num buffer para serem recolhidos pelas threads bilheteira
 	pthread_t tid1;
 	if (pthread_create(&tid1, NULL, listenRequests, NULL) != 0){
 		printf("Error creating main thread");
 		exit(1);
 	}
 
-  // Bilheteira thread - 
-	pthread_t threads[NUM_TICKET_OFFICES];
-	for(int i = 0;i < NUM_TICKET_OFFICES; i++)
+
+
+  	// Bilheteira thread - 
+  	threads = malloc(sizeof(pthread_t)*NUM_TICKET_OFFICES);
+	int* ponteiro;
+	for (int i = 0;i < NUM_TICKET_OFFICES; i++)
 	{
-		if (pthread_create(&threads[i], NULL, handleRequests, seats) != 0){
+		ponteiro = malloc(sizeof(int));
+		*ponteiro = i;
+		if (pthread_create(&threads[i], NULL, handleRequests, ponteiro) != 0){
 			printf("Error creating ticket booth thread");
 			exit(1);
 		}
 	}
 	pthread_join(tid1, NULL);
 
-	for(int i = 0;i < NUM_TICKET_OFFICES; i++)
+	for (int i = 0;i < NUM_TICKET_OFFICES; i++)
 	{
 		pthread_join(threads[i], NULL);
 	}
 
-  //Close mutex 
-//   pthread_mutex_destroy(&mutex);
+ 	 //Close mutex 
+  	pthread_mutex_destroy(&mutex);
 
-  //Close file descriptors
+ 	 //Close file descriptors
 	close(REQUESTS_FIFO_FD);
 
-  // Delete FIFOS
+ 	 // Delete FIFOS
 	unlink(REQUESTS_FIFO_PATH);
 
 
-  // Fica a faltar a parte de escrever nos ficheiros e da sincronizacao das threads
+  	// Fica a faltar a parte de escrever nos ficheiros e da sincronizacao das threads
 
 	return 0;
 }

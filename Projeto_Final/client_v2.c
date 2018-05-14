@@ -6,6 +6,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -22,64 +23,18 @@ int REQUESTS_FIFO_FD;
 char ANSWERS_FIFO_PATH[100]; // Path do fifo requests
 char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
+int answered = 0;
 
-void makeAnswerFIFO()
+
+void sigalrm_handler(int signal)
 {
-	if (mkfifo(ANSWERS_FIFO_PATH, 0660) < 0) {
-		if (errno != EEXIST) {
-			perror("Error creating FIFO");
-			exit(1);
-		}
-	}
-}
-
-void openAnswerFIFO()
-{
-	if ( (ANSWERS_FIFO_FD = open(ANSWERS_FIFO_PATH, O_RDONLY)) == -1 ) {
-		perror("Failed to open ANSWERS_FIFO");
-		exit(1);
-	}
-}
-
-void openRequestsFIFO()
-{
-	if ( (REQUESTS_FIFO_FD = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
-		perror("Failed to open REQUESTS_FIFO");
-		exit(1);
-	}
-}
-
-void sendRequest(int pid, int time_out, int num_wanted_seats)
-{
-	Request *request = NewRequest(pid, num_wanted_seats, pref_seat_list, pref_seat_list_size);
-
-	write(REQUESTS_FIFO_FD, request, sizeof(Request));
-}
-
-void printAnswer()
-{
-	int buffer;
-	int flag = 0;
-	int bytes;
-
-	while (1)
+	if (!answered)
 	{
-		usleep(1000*10); //10 milisegundos
-		bytes = read(ANSWERS_FIFO_FD, &buffer, sizeof(buffer));
-
-		if (bytes > 0)
-		{
-			printf("%i ", buffer);
-			flag = 1;
-		}
-		else
-		{
-			if (flag)
-			{
-				printf("\n");
-				break;
-			}
-		}
+		printf("Time-out!\n");
+		close(REQUESTS_FIFO_FD);
+		close(ANSWERS_FIFO_FD);
+		unlink(ANSWERS_FIFO_PATH);
+		exit(2);
 	}
 }
 
@@ -126,6 +81,68 @@ void fillSeatsList(char* str)
 	pref_seat_list_size++;
 }
 
+void makeAnswerFIFO()
+{
+	if (mkfifo(ANSWERS_FIFO_PATH, 0660) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
+		}
+	}
+}
+
+void openAnswerFIFO()
+{
+	if ( (ANSWERS_FIFO_FD = open(ANSWERS_FIFO_PATH, O_RDONLY)) == -1 ) {
+		perror("Failed to open ANSWERS_FIFO");
+		exit(1);
+	}
+}
+
+void openRequestsFIFO()
+{
+	if ( (REQUESTS_FIFO_FD = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
+		perror("Failed to open REQUESTS_FIFO");
+		exit(1);
+	}
+}
+
+void sendRequest(int pid, int num_wanted_seats)
+{
+	Request *request = NewRequest(pid, num_wanted_seats, pref_seat_list, pref_seat_list_size);
+
+	write(REQUESTS_FIFO_FD, request, sizeof(Request));
+}
+
+void printAnswer()
+{
+	int buffer;
+	int flag = 0;
+	int bytes;
+
+	while (1)
+	{
+		usleep(1000*10); //10 milisegundos
+		bytes = read(ANSWERS_FIFO_FD, &buffer, sizeof(buffer));
+
+		if (bytes > 0)
+		{
+			answered = 1;
+			printf("%i ", buffer);
+			flag = 1;
+		}
+		else
+		{
+			if (flag)
+			{
+				printf("\n");
+				break;
+			}
+		}
+	}
+}
+
+
 int main(int argc, char *argv[]) {
 
 	if (argc != 4) {
@@ -134,15 +151,28 @@ int main(int argc, char *argv[]) {
 	}
 	printf("ARGS: %s | %s | %s\n", argv[1], argv[2], argv[3]);
 
+	struct sigaction alarmaction;
+
+	alarmaction.sa_handler = sigalrm_handler;
+	sigemptyset(&alarmaction.sa_mask);
+	alarmaction.sa_flags = 0;
+
+	if (sigaction(SIGALRM, &alarmaction, NULL) != 0)
+	{
+		perror("Unable to install SIGALRM handler\n");
+		return 1;
+	}
+
 	sprintf(ANSWERS_FIFO_PATH, "%s%u", "/tmp/ans", getpid());
 
 	fillSeatsList(argv[3]);
 
 	makeAnswerFIFO();
 	openRequestsFIFO();
-	sendRequest(getpid(), atoi(argv[1]), atoi(argv[2]));
+	sendRequest(getpid(), atoi(argv[2]));
 	openAnswerFIFO();
 
+	alarm(1);
 	printAnswer();
 
 	close(REQUESTS_FIFO_FD);

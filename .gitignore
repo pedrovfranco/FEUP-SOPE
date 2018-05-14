@@ -1,4 +1,5 @@
 *.o
 *.d
 server
+client
 main
