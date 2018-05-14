@@ -1,8 +1,8 @@
 cc		 = gcc
 CFLAGS	 = -Wall -Wextra -g
 LDFLAGS  =
-DEPS	 = client_v2.c request.c request.h
-OBJFILES = client_v2.o request.o
+DEPS	 = client_v2.c request.c request.h clientlog.c clientlog.h
+OBJFILES = client_v2.o request.o clientlog.o
 TARGET	 = client
 
 all: $(TARGET)

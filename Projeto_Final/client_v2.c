@@ -13,6 +13,7 @@
 
 #include "request.h"
 #include "macros.h"
+#include "clientlog.h"
 
 
 int pref_seat_list[MAX_CLI_SEATS];
@@ -120,6 +121,13 @@ void printAnswer()
 	int flag = 0;
 	int bytes;
 
+	int count = 0;
+	int arr[100];
+	for (int i = 0; i < 100; i++)
+	{
+		arr[i] = -9;
+	}
+
 	while (1)
 	{
 		usleep(1000*10); //10 milisegundos
@@ -128,14 +136,21 @@ void printAnswer()
 		if (bytes > 0)
 		{
 			answered = 1;
-			printf("%i ", buffer);
+			//printf("%i ", buffer);
+			arr[count] = buffer;
+			count++;
 			flag = 1;
 		}
 		else
 		{
 			if (flag)
 			{
-				printf("\n");
+				printf("fgag");
+				logAnswer(arr, getpid(), count);
+				for (int i = 0; i < 100; i++)
+				{
+					arr[i] = -9;
+				}
 				break;
 			}
 		}
@@ -166,6 +181,8 @@ int main(int argc, char *argv[]) {
 	sprintf(ANSWERS_FIFO_PATH, "%s%u", "/tmp/ans", getpid());
 
 	fillSeatsList(argv[3]);
+
+	openLog();
 
 	makeAnswerFIFO();
 	openRequestsFIFO();
