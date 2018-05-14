@@ -13,6 +13,7 @@
 #include "request.h"
 #include "queue.h"
 #include "macros.h"
+#include "serverlog.h"
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -24,6 +25,8 @@ int REQUESTS_FIFO_FD; // File descriptor do fifo de requests
 char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 queue* requestBuffer;
+
+pid_t mainPID;
 
 pthread_t *threads;
 
@@ -47,7 +50,7 @@ void sigalrm_handler(int signal)
 	kill(0, SIGINT);
 }
 
-void sigint_handler(int signal)
+void sigint_handler(int signal) //Correct way to terminate the program
 {
 	UNUSED(signal);
 	terminate = 1;
@@ -83,8 +86,8 @@ int openReadFIFO(char* filename)
 	int fd;
 
 	if ( (fd = open(filename, O_RDONLY)) == -1 ) {
-		perror("Failed to open REQUESTS_FIFO");
-		exit(1);
+		// perror("Failed to open REQUESTS_FIFO");
+		// exit(1);
 	}
 
 	return fd;
@@ -163,6 +166,8 @@ void * listenRequests(void * arg)
 {
 	UNUSED(arg);
 
+	mainPID = getpid();
+
 	Request * request;
 	Request * auxiliaryRequest = malloc(sizeof(Request));
 	int bytes;
@@ -182,20 +187,9 @@ void * listenRequests(void * arg)
 
 		if (terminate)
 		{
-			close(REQUESTS_FIFO_FD);
-			unlink(REQUESTS_FIFO_PATH);
+			printf("Caught\n");
 
-			for (int i = 0; i < NUM_TICKET_OFFICES; ++i)
-			{
-				pthread_cancel(threads[i]);
-			}
-
-			for (int i = 0;i < NUM_TICKET_OFFICES; i++)
-			{
-				pthread_join(threads[i], NULL);
-			}
-
-			exit(2);
+			pthread_exit(NULL);
 		}
 	}
 
@@ -204,7 +198,19 @@ void * listenRequests(void * arg)
 
 void * handleRequests(void * arg)
 {
-	UNUSED(arg);
+	struct sigaction intaction;
+
+	intaction.sa_handler = sigint_handler;
+	sigemptyset(&intaction.sa_mask);
+	intaction.sa_flags = 0;
+
+	if (sigaction(SIGINT, &intaction, NULL) != 0)
+	{
+		perror("Unable to install SIGINT handler\n");
+		pthread_exit(NULL);
+	}
+
+	logOpenTicketBooth(*(int*)arg);
 
 	int client_fifo_pd;
 	char * client_fifo_path = malloc(100);
@@ -279,12 +285,15 @@ void * handleRequests(void * arg)
 			}
 
 			close(client_fifo_pd);
+
+			logRequest(request, *(int*)arg, answer, reservedSeats, reservedSeatsSize);
+
 		}
 
+		pthread_mutex_unlock(&mutex);
+	
 		if (terminate)
 			pthread_exit(NULL);
-
-		pthread_mutex_unlock(&mutex);
 	}
 
 	
@@ -304,23 +313,6 @@ int main(int argc, char *argv[]) {
 	NUM_ROOM_SEATS = atoi(argv[1]);
 	NUM_TICKET_OFFICES = atoi(argv[2]);
 	OPEN_TIME = atoi(argv[3]);
-
-	alarm(OPEN_TIME);
-
-  	//Criacao do fifo de requests
-	createFIFO(REQUESTS_FIFO_PATH);
-
-  	// Abertura do fifo de requests
-  	// TODO: Abrir os fifos que vem dos clientes
-	REQUESTS_FIFO_FD = openReadFIFO(REQUESTS_FIFO_PATH);
-
-	requestBuffer = qcreate(99); //Creates queue of Resquest pointers with a maximum size of 99
-
-	seats = malloc(sizeof(Seat)*NUM_ROOM_SEATS);
-	for (int i = 0; i < NUM_ROOM_SEATS; ++i)
-	{
-		seats[i].clientPID = -1;
-	}
 
 	struct sigaction pipeaction;
 
@@ -346,6 +338,37 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	struct sigaction intaction;
+
+	intaction.sa_handler = sigint_handler;
+	sigemptyset(&intaction.sa_mask);
+	intaction.sa_flags = 0;
+
+	if (sigaction(SIGINT, &intaction, NULL) != 0)
+	{
+		perror("Unable to install SIGINT handler\n");
+		return 1;
+	}
+
+	alarm(OPEN_TIME);
+
+	openLog();
+
+  	//Criacao do fifo de requests
+	createFIFO(REQUESTS_FIFO_PATH);
+
+  	// Abertura do fifo de requests
+  	// TODO: Abrir os fifos que vem dos clientes
+	REQUESTS_FIFO_FD = openReadFIFO(REQUESTS_FIFO_PATH);
+
+	requestBuffer = qcreate(1); //Creates queue of Resquest pointers with a maximum size of 1
+
+	seats = malloc(sizeof(Seat)*NUM_ROOM_SEATS);
+	for (int i = 0; i < NUM_ROOM_SEATS; ++i)
+	{
+		seats[i].clientPID = -1;
+	}
+
   	// Mutex
   	pthread_mutex_init(&mutex, NULL);
 
@@ -365,7 +388,7 @@ int main(int argc, char *argv[]) {
 	for (int i = 0;i < NUM_TICKET_OFFICES; i++)
 	{
 		ponteiro = malloc(sizeof(int));
-		*ponteiro = i;
+		*ponteiro = i+1;
 		if (pthread_create(&threads[i], NULL, handleRequests, ponteiro) != 0){
 			printf("Error creating ticket booth thread");
 			exit(1);
@@ -376,6 +399,7 @@ int main(int argc, char *argv[]) {
 	for (int i = 0;i < NUM_TICKET_OFFICES; i++)
 	{
 		pthread_join(threads[i], NULL);
+		logCloseTicketBooth(i+1);
 	}
 
  	 //Close mutex 
@@ -386,6 +410,8 @@ int main(int argc, char *argv[]) {
 
  	 // Delete FIFOS
 	unlink(REQUESTS_FIFO_PATH);
+
+	logCloseServer();
 
 
   	// Fica a faltar a parte de escrever nos ficheiros e da sincronizacao das threads
