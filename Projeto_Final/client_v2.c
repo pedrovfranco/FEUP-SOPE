@@ -26,6 +26,7 @@ char * REQUESTS_FIFO_PATH = "/tmp/requests"; // Path do fifo requests
 
 int answered = 0;
 
+int arr[100];
 
 void sigalrm_handler(int signal)
 {
@@ -120,13 +121,8 @@ void printAnswer()
 	int buffer;
 	int flag = 0;
 	int bytes;
-
 	int count = 0;
-	int arr[100];
-	for (int i = 0; i < 100; i++)
-	{
-		arr[i] = -9;
-	}
+
 
 	while (1)
 	{
@@ -136,7 +132,7 @@ void printAnswer()
 		if (bytes > 0)
 		{
 			answered = 1;
-			//printf("%i ", buffer);
+			printf("%i ", buffer);
 			arr[count] = buffer;
 			count++;
 			flag = 1;
@@ -145,12 +141,9 @@ void printAnswer()
 		{
 			if (flag)
 			{
-				printf("fgag");
+				close(ANSWERS_FIFO_FD);
+				printf("sfd");
 				logAnswer(arr, getpid(), count);
-				for (int i = 0; i < 100; i++)
-				{
-					arr[i] = -9;
-				}
 				break;
 			}
 		}

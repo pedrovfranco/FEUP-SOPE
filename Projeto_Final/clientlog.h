@@ -17,7 +17,7 @@ void openLog();
 
 void logPrint(char* str);
 
-void bookPrint(int n);
+void bookPrint(char* str);
 
 void logAnswer(int * arr, int pid, int count);
 

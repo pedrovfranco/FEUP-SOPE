@@ -8,10 +8,9 @@
 
 void openLog()
 {
-	logFile = fopen(logFilename, "w");
-	bookFile = fopen(bookFilename, "w");
+	logFile = fopen(logFilename, "a");
+	bookFile = fopen(bookFilename, "a");
 }
-
 
 void logPrint(char* str)
 {
@@ -19,22 +18,22 @@ void logPrint(char* str)
 	fflush(logFile);
 }
 
-void bookPrint(int n)
+void bookPrint(char* str)
 {
-	fprintf(bookFile, "%s", n);
+	fprintf(bookFile, "%s", str);
 	fflush(bookFile);
 }
 
 void logAnswer(int * arr, int pid, int count)
 {
 	char log[1000] = "", book[1000] = "";
-	sprintf(log, "%.5d ", pid);
+	//sprintf(log, "%.5d ", pid);
     if (arr[0] > 0)
     {
-        for (int i = 1; i < arr[0]; i++)
+        for (int i = 1; i < arr[0] + 1; i++)
         {
-            sprintf(log, "%.i / %i  %.5d\n", i, arr[0], arr[i]);
-            bookPrint(arr[i]);
+            sprintf(log, "%s %i %i | %i  %.4d\n",log, pid, i, arr[0], arr[i]);
+            sprintf(book,"%s %.4d\n", book, arr[i]);
         }
     }
     else{
@@ -64,5 +63,6 @@ void logAnswer(int * arr, int pid, int count)
         }
     }
 
+    bookPrint(book);
 	logPrint(log);
 }

@@ -8,8 +8,8 @@
 
 void openLog()
 {
-	logFile = fopen(logFilename, "w");
-	bookFile = fopen(bookFilename, "w");
+	logFile = fopen(logFilename, "a");
+	bookFile = fopen(bookFilename, "a");
 }
 
 
